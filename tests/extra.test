@@ -1,0 +1,46 @@
+# 
+# Copyright Jerily LTD. All Rights Reserved.
+# SPDX-FileCopyrightText: 2026 Neofytos Dimitriou (neo@jerily.cy)
+# SPDX-License-Identifier: MIT.
+# 
+
+package require tcltest 2
+namespace import ::tcltest::test
+lappend ::auto_path [file dirname [file dirname [file normalize [info script]]]]
+package require pure-tcl-aws-s3
+set endpoint [lindex $argv 0]
+set argv {}
+set c [::aws::s3::create [dict create region us-east-1 endpoint $endpoint aws_access_key_id test aws_secret_access_key test aws_session_token temporary-token]]
+test s3-buckets {bucket methods preserve result shapes} -body {
+    $c create_bucket bucket
+    set result [$c list_buckets]
+    $c delete_bucket bucket
+    set result
+} -result bucket
+test s3-list {list pagination decodes keys without treating plus as space} -body {$c ls bucket} -result {a+b 雪}
+test s3-path {literal dot segments, percent signs and Unicode keys are signed exactly} -body {
+    set key "a/../雪 +%/😀"
+    $c put_text bucket $key "hello 😀"
+    set bytes [$c get bucket $key]
+    list [string length $bytes] [binary encode hex [string range $bytes 0 3]]
+} -result {256 00010203}
+test s3-compressed {stored gzip bytes are not transparently decompressed} -body {
+    binary encode hex [zlib gunzip [$c get bucket compressed]]
+} -result 73746f72656420627974657300ff
+test s3-delete {single and batch deletes preserve XML and digest encoding} -body {
+    $c delete bucket key
+    $c batch_delete bucket {a&b 雪}
+} -result {}
+test s3-head {only missing resources return false} -body {
+    list [$c exists bucket present] [$c exists bucket missing] [$c exists_bucket bucket] [catch {$c exists bucket forbidden} msg opts] [dict get $opts -errorcode]
+} -result {1 0 1 1 {AWS S3 HTTP403}}
+test s3-presign {namespace and client forms sign without network traffic} -body {
+    set a [$c generate_presigned_url -expire 60 bucket {雪 +%}]
+    set b [::aws::s3::generate_presigned_url -expire 60 $c bucket {雪 +%}]
+    list [string match {*X-Amz-Security-Token=temporary-token*} $a] [string match {*%E9%9B%AA%20%2B%25*} $a] [expr {$a eq $b}]
+} -result {1 1 1}
+
+$c destroy
+set failed $::tcltest::numTests(Failed)
+::tcltest::cleanupTests
+exit [expr {$failed > 0}]
