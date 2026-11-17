@@ -9,7 +9,7 @@ namespace import ::tcltest::test
 lassign $argv library endpoint directory
 set argv {}
 lappend ::auto_path [file dirname [file dirname [info script]]]
-package require pure-tcl-aws-s3 0.1.0
+package require pure-tcl-aws-s3 0.1.1
 set client [::aws::s3::create [dict create region us-east-1 endpoint $endpoint \
     aws_access_key_id test aws_secret_access_key test]]
 

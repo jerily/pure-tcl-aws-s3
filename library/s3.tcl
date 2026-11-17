@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: MIT.
 # 
 
-package require pure-tcl-aws-core 0.1.0
+package require pure-tcl-aws-core 1.0.0
 namespace eval ::aws::s3 {namespace path ::aws::core}
 ::aws::core::register s3 {ls put_text put get delete batch_delete exists create_bucket delete_bucket exists_bucket list_buckets generate_presigned_url put_multipart create_multipart_upload upload_part complete_multipart_upload abort_multipart_upload}
 
@@ -108,7 +108,7 @@ proc ::aws::s3::_batch_delete {client bucket keys} {
         foreach key [lrange $keys $start $start+999] {append body <Object><Key>[escape_xml $key]</Key></Object>}
         append body </Delete>
         set bytes [encoding convertto utf-8 $body]
-        set headers [dict create Content-Type application/xml Content-MD5 [binary encode base64 -maxlen 0 [::md5::md5 -- $bytes]]]
+        set headers [dict create Content-Type application/xml Content-MD5 [binary encode base64 -maxlen 0 [::thashlib::md5 $bytes]]]
         set response [call $client POST $bucket {} {delete {}} $bytes $headers 1 1]
         set doc [xml [dict get $response body]]
         try {
@@ -259,5 +259,5 @@ proc ::aws::s3::_put_multipart {client bucket key filename {part_size 8388608}} 
         return -options $opts $message
     } finally {close $channel}
 }
-package provide pure-tcl-aws-s3 0.1.0
+package provide pure-tcl-aws-s3 0.1.1
 package provide awss3 1.0.19
