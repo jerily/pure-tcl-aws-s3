@@ -259,5 +259,5 @@ proc ::aws::s3::_put_multipart {client bucket key filename {part_size 8388608}} 
         return -options $opts $message
     } finally {close $channel}
 }
-package provide pure-tcl-aws-s3 0.1.1
+package provide pure-tcl-aws-s3 1.0.0
 package provide awss3 1.0.19
